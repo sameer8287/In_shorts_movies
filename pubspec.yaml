@@ -28,6 +28,7 @@ dependencies:
   cached_network_image: ^3.4.1
   share_plus: ^10.0.2
   gap: ^3.0.1
+  flutter_staggered_animations: ^1.1.1
 
 
 
@@ -124,14 +125,13 @@ flutter_native_splash:
   ios: true
   web: false
 
-  color: "#503CEB"
-#  branding: assets/images/splash.png
-  fullscreen: true
-  image: assets/images/outlined_logo.png
+  color: "#FFFFFF"
+#  image: assets/images/splash_logo.png
+
 
   android_12:
     fullscreen: true
-    color: "#503CEB"
+    color: "#FFFFFF"
 #    branding: assets/images/splash.png
-    image: assets/images/outlined_logo.png
+#    image: assets/images/splash_logo.png
 #    icon_background_color: "transparent"

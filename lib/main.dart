@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:in_shorts_movies/data/local/db_helper.dart';
 import 'package:in_shorts_movies/feature/landing/presentation/provider/internet_connectivity_provider.dart';
 import 'package:in_shorts_movies/feature/movies/presentation/provider/movie_list_provider.dart';

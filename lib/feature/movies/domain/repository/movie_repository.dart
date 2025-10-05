@@ -3,7 +3,7 @@ import 'package:in_shorts_movies/core/model/movie_detail_with_bookmarl.dart';
 import 'package:in_shorts_movies/core/model/movie_list_model.dart';
 
 abstract class MovieRepository {
-  Future<List<Result>> getMoviesList(String type);
+  Future<List<Result>> getMoviesList(String type,String? searchText);
 
   Future<List<Result>> getBookMarkMoviesList();
 

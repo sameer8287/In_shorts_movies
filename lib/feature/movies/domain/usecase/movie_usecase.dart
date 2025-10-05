@@ -10,8 +10,8 @@ class MovieUseCase {
 
   MovieUseCase({required this.movieRepository});
 
-  Future<List<Result>> getMovieList(String type) async {
-    return await movieRepository.getMoviesList(type);
+  Future<List<Result>> getMovieList(String type,[String? searchText]) async {
+    return await movieRepository.getMoviesList(type, searchText);
   }
 
   Future<List<Result>> getBookMarkedMovieList() async {

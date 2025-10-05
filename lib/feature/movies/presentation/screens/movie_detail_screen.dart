@@ -35,13 +35,13 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     final provider = context.read<MoviesListProvider>();
 
     try {
-      context.loaderOverlay.show();
+      provider.updateLoading();
       await provider.getMovieDetail(widget.id);
     } catch (e, stacktrace) {
       HelperFunctions.printLog(e.toString(), stacktrace);
       HelperFunctions.showSnackBar(context, e.toString());
     } finally {
-      context.loaderOverlay.hide();
+      provider.updateLoading();
     }
   }
 
@@ -76,6 +76,8 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         body: Consumer<MoviesListProvider>(
           builder: (context, provider, child) {
             final movie = provider.movieDetail;
+
+            if (provider.isLoading) return Center(child: CircularProgressIndicator());
 
             if (movie == null) {
               return const Center(child: Text("No data found"));

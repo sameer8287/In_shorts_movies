@@ -11,12 +11,14 @@ import '../../../../core/model/movie_detail_with_bookmarl.dart';
 
 class MovieRepositoryImpl extends MovieRepository {
   @override
-  Future<List<Result>> getMoviesList(String type) async {
-    List<Map<String, dynamic>> data = await DbHelper.instance.queryAllRows(
-      MoviesSchema.tableName,
-      where: "${MoviesSchema.columnType} = ?",
-      whereArgs: [type],
-    );
+  Future<List<Result>> getMoviesList(String type, String? searchText) async {
+    final whereClause = searchText != null && searchText.isNotEmpty
+        ? "${MoviesSchema.columnType} = ? AND ${MoviesSchema.columnTitle} LIKE ?"
+        : "${MoviesSchema.columnType} = ?";
+
+    final whereArgs = searchText != null && searchText.isNotEmpty ? [type, '%$searchText%'] : [type];
+
+    List<Map<String, dynamic>> data = await DbHelper.instance.queryAllRows(MoviesSchema.tableName, where: whereClause, whereArgs: whereArgs);
     return data.map((element) => Result.fromJson(element, fromDb: true)).toList();
   }
 

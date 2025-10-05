@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:in_shorts_movies/core/router/router_name.dart';
 import 'package:in_shorts_movies/core/services/sync_work_manager.dart';
@@ -29,6 +32,8 @@ class _MovieListScreenState extends State<MovieListScreen> {
   final CarouselSliderController _carouselController = CarouselSliderController();
   final TextEditingController searchController = TextEditingController();
 
+  Timer? _debounce;
+
   @override
   void initState() {
     super.initState();
@@ -40,19 +45,20 @@ class _MovieListScreenState extends State<MovieListScreen> {
   Future<void> initData() async {
     final provider = context.read<MoviesListProvider>();
     try {
-      context.loaderOverlay.show();
-      await provider.initData();
+      provider.updateLoading();
+      await provider.initData(searchController.text);
     } catch (e, stacktrace) {
       HelperFunctions.printLog(e.toString(), stacktrace);
       HelperFunctions.showSnackBar(context, e.toString());
     } finally {
-      context.loaderOverlay.hide();
+      provider.updateLoading();
     }
   }
 
   Future<void> syncAllData() async {
+    final provider = context.read<MoviesListProvider>();
     try {
-      context.loaderOverlay.show();
+      provider.updateLoading();
       final isInternet = context.read<InternetConnectivityProvider>().isInternetAvailable;
       if (isInternet) {
         await SyncWorkManager.instance.syncAllData();
@@ -62,8 +68,15 @@ class _MovieListScreenState extends State<MovieListScreen> {
     } catch (e, stacktrace) {
       HelperFunctions.printLog(e.toString(), stacktrace);
     } finally {
-      context.loaderOverlay.hide();
+      provider.updateLoading();
     }
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -98,36 +111,52 @@ class _MovieListScreenState extends State<MovieListScreen> {
         child: Column(
           children: [
             Gap(10),
-            CustomTextFormField(hintText: "Search Movie name", controller: searchController,
-            onChanged: (value){
+            CustomTextFormField(
+              hintText: "Search Movie name",
+              controller: searchController,
+              onChanged: (value) {
+                if (_debounce?.isActive ?? false) _debounce!.cancel();
 
-            },
-            prefixIcon: Icon(Icons.search,color: Colors.grey,),
+                _debounce = Timer(const Duration(milliseconds: 600), () {
+                  // if (value.trim().isNotEmpty) {
+                  initData();
+                  // }
+                });
+              },
+              prefixIcon: Icon(Icons.search, color: Colors.grey),
             ),
             Gap(15),
             Expanded(
               child: Consumer<MoviesListProvider>(
                 builder: (context, provider, child) {
+                  if (provider.isLoading) return Center(child: CircularProgressIndicator());
+
                   if (provider.nowPlayingMovies.isEmpty && provider.tendingMovies.isEmpty) {
                     return Center(
-                      child: ElevatedButton(
-                        style: ButtonStyle(backgroundColor: WidgetStateProperty.all(AppTheme.primaryColor)),
-
-                        onPressed: () async {
-                          await syncAllData();
-                          await initData();
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.sync, color: Colors.white, size: 22),
-                            Gap(15),
-                            Text(
-                              "Sync data",
-                              style: MyTextTheme.myBodyMediumTheme(textColor: Colors.white, fontWeight: FontWeight.w400),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("No data found", style: MyTextTheme.myBodyLargeTheme()),
+                          Gap(20),
+                          ElevatedButton(
+                            style: ButtonStyle(backgroundColor: WidgetStateProperty.all(AppTheme.primaryColor)),
+                            onPressed: () async {
+                              await syncAllData();
+                              await initData();
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.sync, color: Colors.white, size: 22),
+                                Gap(15),
+                                Text(
+                                  "Sync data",
+                                  style: MyTextTheme.myBodyMediumTheme(textColor: Colors.white, fontWeight: FontWeight.w400),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -138,7 +167,6 @@ class _MovieListScreenState extends State<MovieListScreen> {
                         // Trending Movies Carousel Section
                         _buildTrendingMoviesSection(provider.tendingMovies),
                         const SizedBox(height: 32),
-
                         // Now Playing Movies Section
                         _buildNowPlayingMoviesSection(provider.nowPlayingMovies),
                       ],
@@ -154,10 +182,6 @@ class _MovieListScreenState extends State<MovieListScreen> {
   }
 
   Widget _buildTrendingMoviesSection(List<Result> trendingMovies) {
-    if (trendingMovies.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final movies = trendingMovies;
 
     return Column(
@@ -168,24 +192,28 @@ class _MovieListScreenState extends State<MovieListScreen> {
           style: MyTextTheme.myBodySmallTheme(fontSize: 24, fontWeight: FontWeight.bold, textColor: AppTheme.primaryColor),
         ),
         const SizedBox(height: 16),
-        CarouselSlider.builder(
-          carouselController: _carouselController,
-          itemCount: movies.length,
-          itemBuilder: (context, index, realIndex) {
-            final movie = movies[index];
-            return _buildTrendingMovieCard(movie);
-          },
-          options: CarouselOptions(
-            height: 300,
-            viewportFraction: 1.0,
-            enlargeCenterPage: false,
-            autoPlay: true,
-            autoPlayInterval: const Duration(seconds: 3),
-            onPageChanged: (index, reason) {
-              // setState(() {
-              //   _currentTrendingIndex = index;
-              // });
+        Visibility(
+          visible: trendingMovies.isNotEmpty,
+          replacement: Center(child: Text("No data found")),
+          child: CarouselSlider.builder(
+            carouselController: _carouselController,
+            itemCount: movies.length,
+            itemBuilder: (context, index, realIndex) {
+              final movie = movies[index];
+              return _buildTrendingMovieCard(movie);
             },
+            options: CarouselOptions(
+              height: 300,
+              viewportFraction: 1.0,
+              enlargeCenterPage: false,
+              autoPlay: true,
+              autoPlayInterval: const Duration(seconds: 3),
+              onPageChanged: (index, reason) {
+                // setState(() {
+                //   _currentTrendingIndex = index;
+                // });
+              },
+            ),
           ),
         ),
       ],
@@ -273,10 +301,6 @@ class _MovieListScreenState extends State<MovieListScreen> {
   }
 
   Widget _buildNowPlayingMoviesSection(List<Result> nowPlayingMovies) {
-    if (nowPlayingMovies.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final movies = nowPlayingMovies;
 
     return Column(
@@ -287,19 +311,25 @@ class _MovieListScreenState extends State<MovieListScreen> {
           style: MyTextTheme.myBodySmallTheme(fontSize: 24, fontWeight: FontWeight.bold, textColor: AppTheme.primaryColor),
         ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: movies.length,
-          itemBuilder: (context, index) {
-            final movie = movies[index];
-            return MovieCard(
-              movie: movie,
-              onPressed: () {
-                context.pushNamed(RouteName.movieDetails, queryParameters: {"id": movie.id.toString()});
+        Visibility(
+          visible: nowPlayingMovies.isNotEmpty,
+          replacement: Center(child: Text("No data found")),
+          child: AnimationLimiter(
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: movies.length,
+              itemBuilder: (context, index) {
+                final movie = movies[index];
+                return MovieCard(
+                  movie: movie,
+                  onPressed: () {
+                    context.pushNamed(RouteName.movieDetails, queryParameters: {"id": movie.id.toString()});
+                  },
+                );
               },
-            );
-          },
+            ),
+          ),
         ),
       ],
     );

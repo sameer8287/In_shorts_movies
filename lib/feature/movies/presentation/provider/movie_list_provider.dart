@@ -14,6 +14,7 @@ class MoviesListProvider extends ChangeNotifier {
   List<Result> _bookMarkedMovies = [];
   MovieDetailModel? _movieDetail;
   bool _isBookMarked = false;
+  bool _isLoading = false;
 
   List<Result> get tendingMovies => _trendingMovies;
 
@@ -25,9 +26,16 @@ class MoviesListProvider extends ChangeNotifier {
 
   bool get isBookMarked => _isBookMarked;
 
-  Future<void> initData() async {
-    _trendingMovies = await movieUseCase.getMovieList("trending");
-    _nowPlayingMovies = await movieUseCase.getMovieList("now_playing");
+  bool get isLoading => _isLoading;
+
+  updateLoading() {
+    _isLoading = !_isLoading;
+    notifyListeners();
+  }
+
+  Future<void> initData([String? searchText]) async {
+    _trendingMovies = await movieUseCase.getMovieList("trending", searchText);
+    _nowPlayingMovies = await movieUseCase.getMovieList("now_playing", searchText);
     notifyListeners();
   }
 
